@@ -7,6 +7,7 @@ This repository contains the ansible playbooks for building a Cassandra environm
 * A Cassandra cluster
   - [Apache Cassandra 3.11](http://cassandra.apache.org/)
   - [OpenJDK 1.8](https://openjdk.java.net/)
+  - [JMX exporter](https://github.com/prometheus/jmx_exporter)
 * A Reaper server, for repair and snapshot management
   - [Reaper](http://cassandra-reaper.io/)
   - [OpenJDK 1.8](https://openjdk.java.net/)
@@ -14,7 +15,6 @@ This repository contains the ansible playbooks for building a Cassandra environm
 * A monitoring server to track the health of the cluster
   - [Grafana](https://grafana.com/)
   - [Prometheus](https://prometheus.io/)
-  - [JMX exporter](https://github.com/prometheus/jmx_exporter)
 
 # Requirements
 
