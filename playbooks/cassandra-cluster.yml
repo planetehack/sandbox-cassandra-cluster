@@ -1,0 +1,5 @@
+---
+- hosts: cass1 cass2 cass3
+  vars_files: cassandra_vars.yml
+  roles:
+    - cassandra

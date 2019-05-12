@@ -1,0 +1,94 @@
+---
+- name: Add prometheus user
+  user:
+    name: prometheus
+    comment: Prometheus Server
+    home: /opt/prometheus
+
+- name: Download Prometheus
+  get_url:
+    url: https://github.com/prometheus/prometheus/releases/download/v2.9.2/prometheus-2.9.2.linux-amd64.tar.gz
+    dest: /tmp/
+    owner: prometheus
+    group: prometheus
+    mode: 0644
+
+- name: Extract Prometheus
+  unarchive:
+    src: /tmp/prometheus-2.9.2.linux-amd64.tar.gz
+    dest: /opt/prometheus/
+    remote_src: yes
+    owner: prometheus
+    group: prometheus
+
+- name: Create symlink for Prometheus
+  file:
+    src: /opt/prometheus/prometheus-2.9.2.linux-amd64
+    dest: /opt/prometheus/bin
+    owner: prometheus
+    group: prometheus
+    state: link
+
+- name: Copy over default Prometheus config file
+  copy:
+    src: prometheus.yml
+    dest: /opt/prometheus/bin/prometheus.yml
+    owner: prometheus
+    group: prometheus
+    mode: 0640
+
+- name: Update prometheus config
+  replace:
+    path: /opt/prometheus/bin/prometheus.yml
+    regexp: 'string_cassandra_nodes'
+    replace: "{{ monitoring_endpoints }}"
+
+- name: Open firewall for Prometheus
+  firewalld:
+    port: 9090/tcp
+    permanent: yes
+    state: enabled
+    immediate: yes
+
+- name: Install prometheus systemd service configuration
+  copy:
+    src: prometheus.service
+    dest: /etc/systemd/system/prometheus.service
+    owner: root
+    group: root
+    mode: 0644
+
+- name: Enable and start prometheus
+  systemd:
+    name: prometheus
+    daemon_reload: yes
+    enabled: yes
+    state: restarted
+
+- name: Add Grafana repo
+  copy:
+    src: grafana.repo
+    dest: /etc/yum.repos.d/
+    owner: root
+    group: root
+    mode: 0644
+
+- name: Install Grafana
+  package:
+    name: 
+      - grafana
+    state: present
+
+- name: Start Grafana
+  service:
+    name: grafana-server
+    state: restarted
+    enabled: yes
+
+- name: Open firewall for Grafana
+  firewalld:
+    port: 3000/tcp
+    permanent: yes
+    state: enabled
+    immediate: yes
+

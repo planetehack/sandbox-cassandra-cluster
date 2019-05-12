@@ -1,0 +1,21 @@
+---
+- name: Create JMX Exporter directory
+  file:
+    path: /opt/jmx_exporter
+    owner: cassandra
+    group: cassandra
+    mode: 0750
+    state: directory
+
+- name: Download Prometheus JMX Exporter
+  get_url:
+    url: https://repo1.maven.org/maven2/io/prometheus/jmx/jmx_prometheus_javaagent/0.11.0/jmx_prometheus_javaagent-0.11.0.jar
+    dest: /opt/jmx_exporter/
+    owner: cassandra
+    group: cassandra
+    mode: 0644
+
+- name: Update cassandra-env.sh - Configure JMX exporter
+  lineinfile:
+    path: /etc/cassandra/default.conf/cassandra-env.sh
+    line: 'JVM_OPTS="$JVM_OPTS -javaagent:/opt/jmx_exporter/jmx_prometheus_javaagent-0.11.0.jar=5667:/etc/cassandra/default.conf/cassandra.yaml"'

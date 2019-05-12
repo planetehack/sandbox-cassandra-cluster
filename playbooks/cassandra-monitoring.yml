@@ -1,0 +1,10 @@
+---
+- hosts: cassmon
+  vars_files: cassandra_vars.yml
+  roles:
+    - cassandra-monitoring-server
+
+- hosts: cass1 cass2 cass3
+  vars_files: cassandra_vars.yml
+  roles:
+    - cassandra-monitoring-agent

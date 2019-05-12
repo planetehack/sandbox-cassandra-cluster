@@ -1,0 +1,31 @@
+cluster_name: "Sandbox Cluster"
+
+cassandra_nodes:
+  - "172.16.123.101"
+  - "172.16.123.102"
+  - "172.16.123.103"
+
+endpoint_snitch: "SimpleSnitch"
+num_tokens: "256"
+
+reaper_systems: "172.16.123.100"
+
+monitoring_systems: "172.16.123.99"
+
+cassandra_jmx_user: "cassandra"
+cassandra_jmx_pass: "SandboxPassword"
+
+postgres_user_pass: "postgres"
+
+reaper_db_name: "reaper"
+reaper_db_user: "reaper"
+reaper_db_pass: "SandboxPassword"
+
+reaper_jmx_user: "reaper"
+reaper_jmx_pass: "SandboxPassword"
+
+monitoring_jmx_user: "monitoring"
+monitoring_jmx_pass: "SandboxPassword"
+
+cassandra_nodes_with_port: "{% for item in cassandra_nodes %} {{item}}:5667 {% endfor %}"
+monitoring_endpoints: "{{ cassandra_nodes_with_port.split() }}"

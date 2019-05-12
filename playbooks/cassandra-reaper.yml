@@ -1,0 +1,5 @@
+---
+- hosts: reaper
+  vars_files: cassandra_vars.yml
+  roles:
+    - cassandra-reaper

@@ -1,0 +1,193 @@
+---
+- name: Set up the cassandra repo
+  copy:
+    dest: /etc/yum.repos.d/cassandra.repo
+    owner: root
+    group: root
+    mode: 0644
+    content: |
+      [cassandra]
+      name=ApacheCassandra
+      baseurl=https://www.apache.org/dist/cassandra/redhat/311x/
+      gpgcheck=1
+      repo_gpgcheck=1
+      gpgkey=https://www.apache.org/dist/cassandra/KEYS
+
+- name: Install Cassandra
+  package: 
+    name:
+      - cassandra
+      - java-1.8.0-openjdk
+    state: present  
+  
+- name: Create JMX authentication file
+  copy:
+    dest: /etc/cassandra/jmxremote.password
+    owner: cassandra
+    group: cassandra
+    mode: 0400
+    content: |
+      {{ cassandra_jmx_user }} {{ cassandra_jmx_pass }}
+      {{ reaper_jmx_user }} {{ reaper_jmx_pass }}
+      {{ monitoring_jmx_user }} {{ monitoring_jmx_pass }}
+
+- name: Create JMX access file
+  copy:
+    dest: /etc/cassandra/jmxremote.access
+    owner: cassandra
+    group: cassandra
+    mode: 0400
+    content: |
+      {{ reaper_jmx_user }} readwrite
+      {{ monitoring_jmx_user }} readonly
+      {{ cassandra_jmx_user }} readwrite \
+      create javax.management.monitor.*,javax.management.timer.* \
+      unregister
+
+- name: Add cassandra, reaper, and monitoring zones to the firewall
+  firewalld:
+    zone: "{{ item }}"
+    state: present
+    permanent: true
+  with_items: 
+    - cassandra_cluster
+    - reaper_access
+    - monitoring_access
+
+- name: Reload the firewall
+  service:
+    name: firewalld
+    state: restarted
+
+- name: Open firewall for cassandra intra node connections
+  firewalld:
+    port: 7000-7199/tcp
+    zone: cassandra_cluster
+    source: "{{ item }}"
+    permanent: yes
+    state: enabled
+    immediate: yes
+  with_items:
+    - "{{ cassandra_nodes }}"
+
+- name: Open firewall for cassandra intra node connections
+  firewalld:
+    port: 9042-9142/tcp
+    zone: cassandra_cluster
+    source: "{{ item }}"
+    permanent: yes
+    state: enabled
+    immediate: yes
+  with_items:
+    - "{{ cassandra_nodes }}"
+
+- name: Open firewall for Reaper admin access
+  firewalld:
+    port: 7199/tcp
+    zone: reaper_access
+    source: "{{ item }}"
+    permanent: yes
+    state: enabled
+    immediate: yes
+  with_items:
+    - "{{ reaper_systems }}"
+
+- name: Open firewall for monitoring access
+  firewalld:
+    port: 7199/tcp
+    zone: monitoring_access
+    source: "{{ item }}"
+    permanent: yes
+    state: enabled
+    immediate: yes
+  with_items:
+    - "{{ monitoring_systems }}"
+
+- name: Open firewall for monitoring access
+  firewalld:
+    port: 9042/tcp
+    zone: monitoring_access
+    source: "{{ item }}"
+    permanent: yes
+    state: enabled
+    immediate: yes
+  with_items:
+    - "{{ monitoring_systems }}"
+
+- name: Open firewall for monitoring access
+  firewalld:
+    port: 5667/tcp
+    zone: monitoring_access
+    source: "{{ item }}"
+    permanent: yes
+    state: enabled
+    immediate: yes
+  with_items:
+    - "{{ monitoring_systems }}"
+
+- name: Update Cassandra config - Set cluster name
+  replace:
+    path: /etc/cassandra/default.conf/cassandra.yaml
+    regexp: '^cluster_name:.*'
+    replace: 'cluster_name: "{{ cluster_name }}"'
+
+- name: Update Cassandra config - Set num tokens
+  replace:
+    path: /etc/cassandra/default.conf/cassandra.yaml
+    regexp: '^num_tokens:.*'
+    replace: 'num_tokens: {{ num_tokens }}'
+
+- name: Update Cassandra config - Set listen address
+  replace:
+    path: /etc/cassandra/default.conf/cassandra.yaml
+    regexp: '^listen_address:.*'
+    replace: 'listen_address: {{ ansible_eth0.ipv4.address }}'
+
+- name: Update Cassandra config - Set rpc address
+  replace:
+    path: /etc/cassandra/default.conf/cassandra.yaml
+    regexp: '^rpc_address:.*'
+    replace: 'rpc_address: 0.0.0.0'
+
+- name: Update Cassandra config - Set broadcast rpc address
+  replace:
+    path: /etc/cassandra/default.conf/cassandra.yaml
+    regexp: '^# broadcast_rpc_address:.*'
+    replace: 'broadcast_rpc_address: {{ ansible_eth0.ipv4.address }}'
+
+- name: Update Cassandra config - Set seed list
+  replace:
+    path: /etc/cassandra/default.conf/cassandra.yaml
+    regexp: '- seeds:.*'
+    replace: '- seeds: "{{ cassandra_nodes | join(",") }}"'
+
+- name: Update Cassandra config - Set endpoint snitch
+  replace:
+    path: /etc/cassandra/default.conf/cassandra.yaml
+    regexp: '^endpoint_snitch:.*'
+    replace: 'endpoint_snitch: {{ endpoint_snitch }}'
+
+- name: Update Cassandra config - Set endpoint snitch
+  replace:
+    path: /etc/cassandra/default.conf/cassandra.yaml
+    regexp: '^endpoint_snitch:.*'
+    replace: 'endpoint_snitch: {{ endpoint_snitch }}'
+
+- name: Update cassandra-env.sh - Enable remote jmx
+  replace:
+    path: /etc/cassandra/default.conf/cassandra-env.sh
+    regexp: 'LOCAL_JMX=yes'
+    replace: 'LOCAL_JMX=no'
+
+- name: Update cassandra-env.sh - Configure jmx access
+  replace:
+    path: /etc/cassandra/default.conf/cassandra-env.sh
+    regexp: '^#JVM_OPTS="\$JVM_OPTS -Dcom.sun.management.jmxremote'
+    replace: 'JVM_OPTS="$JVM_OPTS -Dcom.sun.management.jmxremote'
+
+- name: Add nodetool alias for jmx credentials
+  lineinfile:
+    path: "{{ item }}"
+    line: 'alias nodetool="/usr/bin/nodetool -u {{ cassandra_jmx_user }} -pw {{ cassandra_jmx_pass }} "'
+  with_items:
+    - /root/.bashrc
